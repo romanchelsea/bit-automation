@@ -7,7 +7,7 @@ from playwright.async_api import async_playwright, Playwright
 
 async def run(playwright: Playwright):
 
-  # /browser/open 接口会返回 selenium使用的http地址，以及webdriver的path，直接使用即可
+  # /browser/open 返回 data.ws（CDP WebSocket）；Playwright 用 connect_over_cdp(ws) 连接
   browser_id = "a290134f89cd4d40b7521657919f8366" # 窗口ID从窗口配置界面中复制，或者api创建后返回
   res = openBrowser(browser_id)
   ws = res['data']['ws']

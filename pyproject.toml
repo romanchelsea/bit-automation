@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bitbrowser-xhs-playwright"
+version = "0.1.0"
+description = "BitBrowser local API + Playwright (CDP) helpers for 小红书创作服务平台 automation"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "playwright>=1.40",
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.4",
+]
+
+# Flat layout: top-level *.py modules (no package directory)
+[tool.setuptools]
+py-modules = [
+    "bit_api",
+    "bit_playwright",
+    "xhs_draft_sample",
+    "xhs_playwright_inspector",
+    "xhs_recording",
+]
