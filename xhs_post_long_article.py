@@ -6,7 +6,7 @@ Uses human-like automation: character-by-character typing, randomized delays, an
 Requires Bit running, local API, and BROWSER_ID profile logged into creator.
 
 Examples:
-  python xhs_post_long_article.py --title "我的标题" --body "第一段\\n\\n第二段"
+  python xhs_post_long_article.py --title "我的标题" --body $'第一段\n\n第二段'
   python xhs_post_long_article.py --title "我的标题" --body-file ./article.txt
 
 Draft (click 暂存离开 and leave Bit open):
@@ -36,9 +36,16 @@ START_URL = "https://creator.xiaohongshu.com/publish/publish?source=official"
 
 def _load_body(args: argparse.Namespace) -> str:
     if args.body_file is not None:
-        return Path(args.body_file).read_text(encoding="utf-8")
-    assert args.body is not None
-    return args.body
+        body = Path(args.body_file).read_text(encoding="utf-8")
+    else:
+        assert args.body is not None
+        body = args.body
+    
+    # Strip quotes if the entire body is wrapped in them
+    if (body.startswith('"') and body.endswith('"')) or (body.startswith("'") and body.endswith("'")):
+        body = body[1:-1]
+    
+    return body
 
 
 async def _click_with_delay(locator: Locator, delay_min: float = 1.0, delay_max: float = 3.0) -> None:
@@ -66,9 +73,11 @@ async def _click_with_delay(locator: Locator, delay_min: float = 1.0, delay_max:
 async def _type_with_delay(locator: Locator, text: str, mean_delay_ms: int = 50, std_dev_ms: int = 20) -> None:
     """Type text character by character with randomized delays (human-like typing).
     
+    Handles newline characters by pressing Enter instead of typing them.
+    
     Args:
         locator: Playwright locator for the input element
-        text: Text to type
+        text: Text to type (supports \n for paragraph breaks)
         mean_delay_ms: Mean delay in milliseconds between characters (default 50ms)
         std_dev_ms: Standard deviation of delays in milliseconds (default 20ms, creates normal distribution)
     """
@@ -81,7 +90,12 @@ async def _type_with_delay(locator: Locator, text: str, mean_delay_ms: int = 50,
         # Generate random delay from normal distribution for realistic typing speed variation
         delay_ms = max(10, random.gauss(mean_delay_ms, std_dev_ms))  # Ensure minimum 10ms
         await asyncio.sleep(delay_ms / 1000)
-        await locator.type(char)
+        
+        # Handle newlines as Enter key presses for proper paragraph breaks in rich text editors
+        if char == '\n':
+            await locator.press('Enter')
+        else:
+            await locator.type(char)
 
 
 async def _apply_styling_and_templates(page) -> None:
@@ -127,6 +141,10 @@ async def run(
     draft: bool,
     keep_browser_open: bool,
 ) -> None:
+    # Strip quotes if the entire title is wrapped in them
+    if (title.startswith('"') and title.endswith('"')) or (title.startswith("'") and title.endswith("'")):
+        title = title[1:-1]
+    
     res = openBrowser(BROWSER_ID)
     data = res.get("data") or {}
     ws = data.get("ws")
