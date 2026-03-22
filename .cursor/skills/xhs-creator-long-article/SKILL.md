@@ -1,6 +1,6 @@
 ---
 name: xhs-creator-long-article
-description: Automates long-form 小红书创作服务平台 posts using Playwright over BitBrowser CDP and xhs_recording.py (title/body CLI, optional --stop-before-publish for draft-only). Use when automating creator.xiaohongshu.com, 写长文, BitBrowser, connect_over_cdp, sample_xhs_article.txt, or topic / 一键排版 flows.
+description: Automates long-form 小红书创作服务平台 posts using Playwright over BitBrowser CDP and xhs_recording.py (title/body CLI, --draft for 暂存离开 or default flow clicks 发布; optional --keep-browser-open after 发布 for debugging). Use when automating creator.xiaohongshu.com, 写长文, BitBrowser, connect_over_cdp, sample_xhs_article.txt, or 一键排版 flows.
 ---
 
 # Xiaohongshu creator: long article via BitBrowser + Playwright
@@ -10,7 +10,7 @@ description: Automates long-form 小红书创作服务平台 posts using Playwri
 - Target is **PC 创作服务平台** (`creator.xiaohongshu.com`), not the mobile app.
 - **Login and cookies** live in a **BitBrowser profile**; automation must **not** log in again in code—reuse that profile via CDP.
 - Stack matches this repo: **`bit_api`** (local Bit API) + **`playwright.async_api`** + **`connect_over_cdp`**.
-- **Implemented script:** **`xhs_recording.py`** — **`--title`** and **`--body`** or **`--body-file`**; optional **`--topic-tag`**; **`--stop-before-publish`** stops after **下一步** (no topic / no **发布**, leaves Bit open). Sample body: **`sample_xhs_article.txt`**.
+- **Implemented script:** **`xhs_recording.py`** — **`--title`** and **`--body`** or **`--body-file`**; **`--draft`** clicks **暂存离开** (disconnect CDP, Bit stays open); without **`--draft`**, clicks **发布** then **`closeBrowser`** unless **`--keep-browser-open`** (debug: disconnect CDP only). Sample body: **`sample_xhs_article.txt`**.
 
 ## This repository: reference implementation
 
@@ -39,19 +39,25 @@ Long body from file (UTF-8):
 python xhs_recording.py --title "文章标题" --body-file ./article.txt
 ```
 
-Draft only — **stop before topic / 发布** (disconnect CDP, **do not** close the Bit tab or call **`closeBrowser`**):
+Draft — after **下一步**, click **暂存离开** (disconnect CDP, **do not** call **`closeBrowser`**; Bit stays open):
 
 ```bash
-python xhs_recording.py --stop-before-publish --title "春日下午茶：窗边与慢生活（示例）" --body-file sample_xhs_article.txt
+python xhs_recording.py --draft --title "春日下午茶：窗边与慢生活（示例）" --body-file sample_xhs_article.txt
 ```
 
-Full flow (includes topic click; still no **发布** in script unless you add it):
+Publish — click **发布** after **下一步**:
 
 ```bash
-python xhs_recording.py --title "文章标题" --body-file ./article.txt --topic-tag "#你的话题"
+python xhs_recording.py --title "文章标题" --body-file ./article.txt
 ```
 
-If the UI or topic list changes, re-record or adjust locators in **`xhs_recording.py`** (Inspector on Bit).
+Optional — after **发布**, keep Bit open for debugging (**`--keep-browser-open`**, no **`closeBrowser`**):
+
+```bash
+python xhs_recording.py --title "文章标题" --body-file ./article.txt --keep-browser-open
+```
+
+If the UI changes, re-record or adjust locators in **`xhs_recording.py`** (Inspector on Bit).
 
 ## Known long-article flow (verified pattern in `xhs_recording.py`)
 
@@ -62,11 +68,9 @@ Order of operations mirrors the recorded creator UI:
 3. Click **写长文** → **新的创作**
 4. Fill **标题** (`get_by_role("textbox", name="输入标题")`)
 5. Fill **正文** in **`.tiptap`** (after focusing `.rich-editor-content` / paragraph)
-6. **Select all** in editor, then a **cursor nudge** (`ArrowRight` on a div matching the **first line** of the body — same idea as the original `^Bar$` step; may need tweaks if the DOM splits text differently)
-7. **一键排版** → **下一步**
-8. **Optional:** click **topic** (default **`#生活美学`**, **`--topic-tag`**) — **skipped** when **`--stop-before-publish`** (draft-only: stop on the step before topic/publish; user finishes in Bit).
-
-**发布:** the script never clicks **发布** unless you add that step. Use **`--stop-before-publish`** to end after **下一步** and leave the Bit window open for manual topic + **发布**.
+6. **一键排版** → **下一步**
+7. **`--draft`:** click **暂存离开** → disconnect CDP; Bit window stays open.
+8. **Else:** click **发布** → if **`--keep-browser-open`**, **`browser.close()`** only (debug); else **`page.close`**, **`browser.close`**, **`closeBrowser(BROWSER_ID)`**.
 
 ## Connection pattern (required)
 
@@ -114,4 +118,4 @@ To record or **Pick locator** on the **Bit** session:
 
 A **skill** guides the **agent**; you **do not** execute `SKILL.md`. **@**‑mention **`xhs-creator-long-article`** or describe the task so the agent loads this file.
 
-When the user **wants to publish or change** the long-article automation: prefer editing **`xhs_recording.py`**, keep **`BROWSER_ID`** consistent, pass **`--title`** / **`--body`** or **`--body-file`**, and adjust **`--topic-tag`** or the tail of the flow if **发布** is required.
+When the user **wants to publish or change** the long-article automation: prefer editing **`xhs_recording.py`**, keep **`BROWSER_ID`** consistent, pass **`--title`** / **`--body`** or **`--body-file`**, and adjust the tail of the flow if **发布** or **暂存离开** behavior needs to change.

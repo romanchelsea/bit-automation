@@ -18,12 +18,9 @@ dev = [
     "ruff>=0.4",
 ]
 
-# Flat layout: top-level *.py modules (no package directory)
+# Flat layout: top-level *.py modules (utils and main scripts)
 [tool.setuptools]
 py-modules = [
     "bit_api",
-    "bit_playwright",
-    "xhs_draft_sample",
-    "xhs_playwright_inspector",
-    "xhs_recording",
+    "xhs_post_long_article",
 ]

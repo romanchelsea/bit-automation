@@ -61,23 +61,90 @@ If you use Playwright to **launch** its own browsers elsewhere:
 playwright install chromium
 ```
 
-## Scripts (overview)
+## Repository structure
+
+```
+bit-xhs-scripts/
+├── bit_api.py                    # BitBrowser API utility helpers
+├── xhs_post_long_article.py      # Main: automated long-article posting flow
+├── pyproject.toml
+├── README.md
+├── tests/
+│   ├── bit_playwright.py         # Smoke test: CDP connection verification
+│   └── resources/
+│       └── sample_xhs_article.txt # Sample article content for testing
+└── debug/
+    └── xhs_playwright_inspector.py # Debug tool: interactive page inspector
+```
+
+## Scripts (usage)
 
 | File | Purpose |
 |------|--------|
-| `bit_api.py` | BitBrowser HTTP API helpers (`openBrowser`, `closeBrowser`, …) |
-| `bit_playwright.py` | Minimal CDP smoke test |
-| `xhs_recording.py` | Recorded 小红书长文 flow; `--title` / `--body` or `--body-file`; `--stop-before-publish` |
-| `xhs_playwright_inspector.py` | `PWDEBUG=1` + `page.pause()` — Inspector on the Bit tab |
-| `xhs_draft_sample.py` | Older draft experiment (generic locators) |
+| `xhs_post_long_article.py` | Automated 小红书长文 posting flow with human-like behavior; accepts `--title` / `--body` or `--body-file`; `--draft` (暂存离开) or publish (发布); optional `--keep-browser-open` after publish for debugging |
+| `bit_api.py` | BitBrowser HTTP API helpers (`openBrowser`, `closeBrowser`, …) — imported by scripts |
+| `tests/bit_playwright.py` | Smoke test: minimal CDP connection verification |
+| `debug/xhs_playwright_inspector.py` | Debug tool: `PWDEBUG=1` + `page.pause()` — Inspector on the Bit tab |
+| `tests/resources/sample_xhs_article.txt` | Sample article content for testing and reference |
 
-Example:
+Example commands:
 
 ```bash
-python xhs_recording.py --stop-before-publish --title "标题" --body-file sample_xhs_article.txt
+# Main workflow: save as draft
+python xhs_post_long_article.py --draft --title "标题" --body-file tests/resources/sample_xhs_article.txt
+
+# Main workflow: publish directly
+python xhs_post_long_article.py --title "标题" --body "文章内容"
+
+# Smoke test: verify CDP connection
+python tests/bit_playwright.py
+
+# Debug: inspect with interactive Inspector
+PWDEBUG=1 python debug/xhs_playwright_inspector.py
 ```
 
 Set **browser window IDs** and URLs in the scripts to match your Bit profile and environment.
+
+## xhs_post_long_article.py: Human-like automation
+
+The script automates the 小红书 long-article creation flow with human-like behavior to avoid detection:
+
+### Typing behavior
+- **Character-by-character typing**: Title and body text are typed naturally, not pasted instantly
+- **Randomized delays**: Each character has a delay sampled from a normal distribution
+  - Mean delay: 50ms per character
+  - Standard deviation: 20ms (creates natural variance)
+  - Minimum delay: 10ms
+
+### Click behavior
+- **Random inter-click delays**: 1–3 seconds between clicks
+- **Clickability checks**: Verifies element is visible and enabled before clicking
+- **Human-like pauses**: Longer waits at key operations (see timing below)
+
+### Operation timing
+The script includes automatic waits at critical operations:
+- **一键排版 (Auto-format)**: 30 seconds for formatting to complete
+- **下一步 (Next)**: 10 seconds for page transition
+- **暂存离开/发布 (Save/Publish)**: 10 seconds for action to complete
+
+### Extensibility: Styling and metadata
+The script includes TODO placeholders for future enhancements:
+
+**`_apply_styling_and_templates(page)`** — called before "下一步"
+- Choose layout templates
+- Set background colors/images
+- Apply text formatting
+
+**`_set_post_metadata(page)`** — called before "暂存离开"/"发布"
+- Add tags (话题)
+- Tag users (@mentions)
+- Set post visibility (public/private/followers only)
+- Schedule post (timer)
+- Pick cover image
+- Add location info
+- Set content rating
+
+Currently these functions are no-ops but can be implemented incrementally without changing the main flow.
 
 ## Cursor skill
 
