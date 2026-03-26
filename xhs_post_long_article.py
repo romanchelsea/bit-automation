@@ -5,6 +5,11 @@ Uses human-like automation: character-by-character typing, randomized delays, an
 
 Requires Bit running, local API, and BROWSER_ID profile logged into creator.
 
+Body normalization for `--body` / `--body-file`:
+    - Converts `\r\n` and `\r` to `\n`
+    - Decodes escaped newlines like `\\n` / `\\r\\n` to real newlines
+    - Collapses consecutive newlines to a single `\n`
+
 Examples:
   python xhs_post_long_article.py --title "我的标题" --body $'第一段\n\n第二段'
   python xhs_post_long_article.py --title "我的标题" --body-file ./article.txt
@@ -24,6 +29,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import random
+import re
 import sys
 from pathlib import Path
 
@@ -44,6 +50,12 @@ def _load_body(args: argparse.Namespace) -> str:
     # Strip quotes if the entire body is wrapped in them
     if (body.startswith('"') and body.endswith('"')) or (body.startswith("'") and body.endswith("'")):
         body = body[1:-1]
+
+    # Normalize line breaks and decode common escaped newline sequences from shell input.
+    # This prevents literal "\\n\\n" from being posted as text.
+    body = body.replace("\r\n", "\n").replace("\r", "\n")
+    body = body.replace("\\r\\n", "\n").replace("\\n", "\n")
+    body = re.sub(r"\n+", "\n", body)
     
     return body
 

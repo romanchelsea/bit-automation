@@ -109,6 +109,12 @@ Set **browser window IDs** and URLs in the scripts to match your Bit profile and
 
 The script automates the 小红书 long-article creation flow with human-like behavior to avoid detection:
 
+### Body text normalization
+- **Line ending normalization**: Converts Windows (`\r\n`) and legacy Mac (`\r`) line endings to Unix (`\n`)
+- **Escaped newline decoding**: Converts literal shell-escaped newlines (for example `\\n`, `\\r\\n`) into real newline characters
+- **Consecutive newline deduplication**: Collapses multiple consecutive newline characters into a single `\n`
+- **Quote wrapper cleanup**: If the entire `--body` value is wrapped in matching single or double quotes, the outer quotes are removed
+
 ### Typing behavior
 - **Character-by-character typing**: Title and body text are typed naturally, not pasted instantly
 - **Randomized delays**: Each character has a delay sampled from a normal distribution
