@@ -1,12 +1,14 @@
-# bitbrowser-xhs-playwright
+# bit-automation
 
-Python helpers for driving **BitBrowser** (local API on `127.0.0.1:54345`) with **Playwright** over **CDP** (`connect_over_cdp`), plus scripts for **小红书创作服务平台** (`creator.xiaohongshu.com`) long-article flows.
+A collection of **BitBrowser + LLM** powered skills for crawling and automating websites — starting with **小红书 (Xiaohongshu)** and expanding to other platforms like **1point3acres BBS**.
+
+Each skill drives a **BitBrowser** profile (local API on `127.0.0.1:54345`) via **Playwright over CDP**, keeping login sessions and cookies inside the Bit profile so scripts never need to re-authenticate.
 
 ## Requirements
 
 - **Python 3.10+**
 - **BitBrowser** running with the local API enabled (see [BitBrowser API docs](https://doc2.bitbrowser.cn/))
-- A Bit profile **already logged in** to the creator site (cookies stay in the profile)
+- A Bit profile **already logged in** to the target site (cookies stay in the profile)
 
 ## Clone and virtual environment
 
@@ -15,8 +17,8 @@ Use a **new venv on each machine** (do not copy `venv/` from another computer).
 **macOS / Linux**
 
 ```bash
-git clone <your-repo-url>
-cd <cloned-repo-folder>
+git clone git@github.com:romanchelsea/bit-automation.git
+cd bit-automation
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -53,7 +55,7 @@ pip install -e ".[dev]"
 
 ## Playwright browsers
 
-If you only **attach to Bit** via `connect_over_cdp`, you usually **do not** need Playwright’s bundled Chromium.
+If you only **attach to Bit** via `connect_over_cdp`, you usually **do not** need Playwright's bundled Chromium.
 
 If you use Playwright to **launch** its own browsers elsewhere:
 
@@ -64,94 +66,73 @@ playwright install chromium
 ## Repository structure
 
 ```
-bit-xhs-scripts/
-├── bit_api.py                    # BitBrowser API utility helpers
-├── xhs_post_long_article.py      # Main: automated long-article posting flow
+bit-automation/
+├── bit_api.py                              # Shared: BitBrowser API helpers
 ├── pyproject.toml
 ├── README.md
-├── tests/
-│   ├── bit_playwright.py         # Smoke test: CDP connection verification
-│   └── resources/
-│       └── sample_xhs_article.txt # Sample article content for testing
-└── debug/
-    └── xhs_playwright_inspector.py # Debug tool: interactive page inspector
+└── .agent/skills/
+    └── xhs-creator-long-article/          # 小红书 long-article skill
+        ├── SKILL.md                        # Agent guidance
+        ├── xhs_post_long_article.py        # Main automation script
+        ├── tests/
+        │   ├── bit_playwright.py           # Smoke test: CDP connection
+        │   └── resources/
+        │       └── sample_xhs_article.txt
+        └── debug/
+            └── xhs_playwright_inspector.py # Interactive page inspector
 ```
 
-## Scripts (usage)
+## Skills
 
-| File | Purpose |
-|------|--------|
-| `xhs_post_long_article.py` | Automated 小红书长文 posting flow with human-like behavior; accepts `--title` / `--body` or `--body-file`; `--draft` (暂存离开) or publish (发布); optional `--keep-browser-open` after publish for debugging |
-| `bit_api.py` | BitBrowser HTTP API helpers (`openBrowser`, `closeBrowser`, …) — imported by scripts |
-| `tests/bit_playwright.py` | Smoke test: minimal CDP connection verification |
-| `debug/xhs_playwright_inspector.py` | Debug tool: `PWDEBUG=1` + `page.pause()` — Inspector on the Bit tab |
-| `tests/resources/sample_xhs_article.txt` | Sample article content for testing and reference |
+### 小红书 (Xiaohongshu) — long article posting
 
-Example commands:
+Automates the 小红书创作服务平台 (`creator.xiaohongshu.com`) long-article creation flow with human-like behavior.
 
 ```bash
-# Main workflow: save as draft
+# from the skill directory
+cd .agent/skills/xhs-creator-long-article
+
+# Save as draft
 python xhs_post_long_article.py --draft --title "标题" --body-file tests/resources/sample_xhs_article.txt
 
-# Main workflow: publish directly
+# Publish directly
 python xhs_post_long_article.py --title "标题" --body "文章内容"
-
-# Smoke test: verify CDP connection
-python tests/bit_playwright.py
-
-# Debug: inspect with interactive Inspector
-PWDEBUG=1 python debug/xhs_playwright_inspector.py
 ```
 
-Set **browser window IDs** and URLs in the scripts to match your Bit profile and environment.
+**Options:** `--title`, `--body` or `--body-file`, `--draft` (暂存离开), `--keep-browser-open` (debug)
 
-## xhs_post_long_article.py: Human-like automation
+#### Body text normalization
+- Converts Windows/Mac line endings to Unix `\n`
+- Decodes shell-escaped newlines (`\\n`, `\\r\\n`) into real newlines
+- Collapses multiple consecutive newlines into one
+- Strips outer quote wrappers from `--body` values
 
-The script automates the 小红书 long-article creation flow with human-like behavior to avoid detection:
+#### Human-like behavior
+- Character-by-character typing with randomized per-keystroke delays (mean 50ms, σ 20ms, min 10ms)
+- Random inter-click delays (1–3 seconds)
+- Automatic waits at critical UI steps: 一键排版 (30s), 下一步 (10s), 暂存离开/发布 (10s)
 
-### Body text normalization
-- **Line ending normalization**: Converts Windows (`\r\n`) and legacy Mac (`\r`) line endings to Unix (`\n`)
-- **Escaped newline decoding**: Converts literal shell-escaped newlines (for example `\\n`, `\\r\\n`) into real newline characters
-- **Consecutive newline deduplication**: Collapses multiple consecutive newline characters into a single `\n`
-- **Quote wrapper cleanup**: If the entire `--body` value is wrapped in matching single or double quotes, the outer quotes are removed
+#### Planned extensions
+- `_apply_styling_and_templates(page)` — layout templates, background, text formatting
+- `_set_post_metadata(page)` — tags, @mentions, visibility, schedule, cover image, location
 
-### Typing behavior
-- **Character-by-character typing**: Title and body text are typed naturally, not pasted instantly
-- **Randomized delays**: Each character has a delay sampled from a normal distribution
-  - Mean delay: 50ms per character
-  - Standard deviation: 20ms (creates natural variance)
-  - Minimum delay: 10ms
+---
 
-### Click behavior
-- **Random inter-click delays**: 1–3 seconds between clicks
-- **Clickability checks**: Verifies element is visible and enabled before clicking
-- **Human-like pauses**: Longer waits at key operations (see timing below)
+### Coming soon
 
-### Operation timing
-The script includes automatic waits at critical operations:
-- **一键排版 (Auto-format)**: 30 seconds for formatting to complete
-- **下一步 (Next)**: 10 seconds for page transition
-- **暂存离开/发布 (Save/Publish)**: 10 seconds for action to complete
+- **1point3acres BBS** — thread crawling and posting automation
+- Additional platforms driven by BitBrowser + LLM
 
-### Extensibility: Styling and metadata
-The script includes TODO placeholders for future enhancements:
+---
 
-**`_apply_styling_and_templates(page)`** — called before "下一步"
-- Choose layout templates
-- Set background colors/images
-- Apply text formatting
+## Shared utilities
 
-**`_set_post_metadata(page)`** — called before "暂存离开"/"发布"
-- Add tags (话题)
-- Tag users (@mentions)
-- Set post visibility (public/private/followers only)
-- Schedule post (timer)
-- Pick cover image
-- Add location info
-- Set content rating
+| File | Purpose |
+|------|---------|
+| `bit_api.py` | BitBrowser HTTP API helpers (`openBrowser`, `closeBrowser`, …) — imported by all skills |
 
-Currently these functions are no-ops but can be implemented incrementally without changing the main flow.
+Set **browser window IDs** and URLs in each script to match your Bit profile and environment.
 
-## Cursor skill
+## Agent skills
 
-Agent guidance for the long-article workflow lives in `.cursor/skills/xhs-creator-long-article/SKILL.md` (optional for non-Cursor users).
+Agent guidance for each workflow lives under `.agent/skills/`. Reference a skill by name when prompting your agent (e.g. `@xhs-creator-long-article`).

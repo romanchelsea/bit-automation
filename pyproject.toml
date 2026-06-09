@@ -3,9 +3,9 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bitbrowser-xhs-playwright"
-version = "0.1.0"
-description = "BitBrowser local API + Playwright (CDP) helpers for 小红书创作服务平台 automation"
+name = "bit-automation"
+version = "1.0.0"
+description = "BitBrowser + Playwright (CDP) automation skills for crawling and manipulating websites"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -18,9 +18,8 @@ dev = [
     "ruff>=0.4",
 ]
 
-# Flat layout: top-level *.py modules (utils and main scripts)
+# Shared modules at root; skill-specific scripts live under .agent/skills/
 [tool.setuptools]
 py-modules = [
     "bit_api",
-    "xhs_post_long_article",
 ]

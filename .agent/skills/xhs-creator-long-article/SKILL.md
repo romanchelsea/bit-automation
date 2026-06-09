@@ -114,7 +114,7 @@ To record or **Pick locator** on the **Bit** session:
 - **`connect_over_cdp` fails:** window did not open or **`ws`** missing in response.
 - **Login page appears:** wrong profile or expired session—re-login in that Bit window.
 
-## How to use this skill in Cursor
+## How to use this skill
 
 A **skill** guides the **agent**; you **do not** execute `SKILL.md`. **@**‑mention **`xhs-creator-long-article`** or describe the task so the agent loads this file.
 
