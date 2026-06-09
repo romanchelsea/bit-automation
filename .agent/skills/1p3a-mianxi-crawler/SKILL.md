@@ -1,11 +1,13 @@
 ---
 name: 1p3a-mianxi-crawler
-description: Crawl 面经 (interview experience posts) from 1point3acres.com/bbs forum-145 via BitBrowser + Playwright over CDP. Filters by company, year, job category, job type, 应届/在职跳槽. Use when crawling 一亩三分地 面经, 1point3acres BBS interview posts, or running crawl_mianxi.py.
+description: Crawl, classify and report on 面经 (interview experience posts) from 1point3acres.com/bbs forum-145 via BitBrowser + Playwright over CDP. Filters by company, year, job category, job type, 应届/在职跳槽. Classifies questions (behavioral/coding/system_design) via Claude Haiku. Use when crawling 一亩三分地 面经, 1point3acres BBS interview posts, running crawl_mianxi.py, or parse_mianxi.py.
 ---
 
-# 1point3acres 面经 crawler
+# 1point3acres 面经 crawler + classifier
 
-Connects to a BitBrowser window (already logged in to 1point3acres) via CDP, navigates to the 面经 forum (`forum-145-1.html`), applies filters, and extracts the post list. Driver: `.agent/skills/1p3a-mianxi-crawler/crawl_mianxi.py`.
+Two-script pipeline:
+1. **`crawl_mianxi.py`** — navigate to forum-145-1.html, apply filters, extract the post list → cached JSON
+2. **`parse_mianxi.py`** — crawl each post's content, classify questions via Claude Haiku, generate a markdown report
 
 ## Prerequisites
 
@@ -49,6 +51,42 @@ Options:
 | `--keep-open` | off | Disconnect CDP but leave Bit window open (debug) |
 
 Output JSON fields per post: `title`, `url`, `tid`, `metadata` (category/type/company/result inline text), `author`, `time`, `replies`.
+
+## Step 2: Parse and classify (parse_mianxi.py)
+
+Requires `ANTHROPIC_API_KEY` env var. Reads the cached post list, crawls each thread page, classifies questions via Claude Haiku, and writes a markdown report.
+
+```bash
+# Full pipeline — auto-detects latest posts cache
+ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianxi-crawler/parse_mianxi.py
+
+# Explicit posts file, limit to first 20
+ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianxi-crawler/parse_mianxi.py \
+  --posts .agent/skills/1p3a-mianxi-crawler/cache/mianxi_netflix_y2025_cat1_type1_fresh2.json \
+  --max-posts 20
+
+# Force re-parse cached content (skip browser)
+ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianxi-crawler/parse_mianxi.py --force-parse
+```
+
+Options:
+
+| Flag | Default | Notes |
+|------|---------|-------|
+| `--posts` | _(auto)_ | Posts list JSON from `crawl_mianxi.py`; auto-detects latest in `cache/` |
+| `--browser-id` | `f46cbc45596240c0a8b3354cc96def49` | BitBrowser window ID |
+| `--max-posts` | `0` (all) | Limit number of posts to process |
+| `--force-crawl` | off | Re-crawl post content even if `cache/posts/<tid>.json` exists |
+| `--force-parse` | off | Re-classify even if `cache/parsed/<tid>.json` exists |
+| `--keep-open` | off | Leave Bit window open after crawling |
+| `--report` | _(auto)_ | Output report path; defaults to `report_<posts_stem>.md` |
+
+Cache layout:
+- `cache/posts/<tid>.json` — raw post content
+- `cache/parsed/<tid>.json` — classified questions per post
+- Report output at repo root (gitignored via `results.json` pattern is separate; report files are not gitignored by default)
+
+Classification categories: `behavioral`, `coding`, `system_design`. Model: `claude-haiku-4-5`.
 
 ## Gotchas
 
