@@ -36,10 +36,14 @@ playwright/.cache/
 .env.*
 !.env.example
 auth.json
+env.local
 
-# Crawler cache & ad-hoc output files
-.agent/skills/*/cache/
-results.json
+# Crawler cache (JSON only; keep directory structure)
+.agent/skills/*/cache/**/*.json
+
+# Ad-hoc output files
+/*.json
+*.pdf
 report_*.md
 
 # OS / editor
