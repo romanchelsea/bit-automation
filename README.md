@@ -135,4 +135,29 @@ Set **browser window IDs** and URLs in each script to match your Bit profile and
 
 ## Agent skills
 
-Agent guidance for each workflow lives under `.agent/skills/`. Reference a skill by name when prompting your agent (e.g. `@xhs-creator-long-article`).
+Agent guidance for each workflow lives under `.agent/skills/`. Each skill's `SKILL.md` tells the agent what the skill does, how to run it, and what patterns to follow.
+
+To make skills available to your AI agent tool, symlink this repo's skills directory into the tool's skills folder. The symlink lets the agent discover and load `SKILL.md` files while the actual code stays in this repo.
+
+### Claude Code
+
+```bash
+mkdir -p ~/.claude/skills
+ln -s /path/to/bit-automation/.agent/skills/xhs-creator-long-article ~/.claude/skills/xhs-creator-long-article
+```
+
+### Cursor
+
+```bash
+mkdir -p ~/.cursor/skills
+ln -s /path/to/bit-automation/.agent/skills/xhs-creator-long-article ~/.cursor/skills/xhs-creator-long-article
+```
+
+### OpenAI Codex
+
+```bash
+mkdir -p ~/.codex/skills
+ln -s /path/to/bit-automation/.agent/skills/xhs-creator-long-article ~/.codex/skills/xhs-creator-long-article
+```
+
+Replace `/path/to/bit-automation` with the absolute path to your cloned repo (e.g. `~/projects/bit-automation`). After symlinking, reference a skill by name in your agent prompt (e.g. `@xhs-creator-long-article`) — the agent reads `SKILL.md` for context but does not execute it directly.

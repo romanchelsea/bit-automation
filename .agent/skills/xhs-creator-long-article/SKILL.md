@@ -23,9 +23,22 @@ description: Automates long-form 小红书创作服务平台 posts using Playwri
 - **`browser_id` / `BROWSER_ID`:** `a290134f89cd4d40b7521657919f8366` (keep in sync with `bit_playwright.py` if the Bit window is recreated).
 - That profile is **already logged in** to 创作服务平台; automation uses **`browser.contexts[0]`** for cookies. Do not add a login flow unless the user asks or the session expired.
 
+## Setup
+
+All skills share a single venv managed from the **repo root** (`bit-automation/`). `bit_api` is installed as an editable package so any skill can import it directly.
+
+```bash
+# from repo root
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate.bat
+pip install -e .
+```
+
+Run scripts from this skill's directory with the venv active — `import bit_api` will resolve to the root `bit_api.py`.
+
 ## How to run `xhs_recording.py`
 
-BitBrowser running, local API up (`bit_api.py`), venv with **`playwright`** + **`requests`**:
+BitBrowser running, local API up, venv active:
 
 ```bash
 python xhs_recording.py --title "文章标题" --body "第一段
