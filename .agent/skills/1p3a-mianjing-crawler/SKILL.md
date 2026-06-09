@@ -1,13 +1,13 @@
 ---
-name: 1p3a-mianxi-crawler
-description: Crawl, classify and report on 面经 (interview experience posts) from 1point3acres.com/bbs forum-145 via BitBrowser + Playwright over CDP. Filters by company, year, job category, job type, 应届/在职跳槽. Classifies questions (behavioral/coding/system_design) via Claude Haiku. Use when crawling 一亩三分地 面经, 1point3acres BBS interview posts, running crawl_mianxi.py, or parse_mianxi.py.
+name: 1p3a-mianjing-crawler
+description: Crawl, classify and report on 面经 (interview experience posts) from 1point3acres.com/bbs forum-145 via BitBrowser + Playwright over CDP. Filters by company, year, job category, job type, 应届/在职跳槽. Classifies questions (behavioral/coding/system_design) via Claude Haiku. Use when crawling 一亩三分地 面经, 1point3acres BBS interview posts, running crawl_mianjing.py, or parse_mianjing.py.
 ---
 
 # 1point3acres 面经 crawler + classifier
 
 Two-script pipeline:
-1. **`crawl_mianxi.py`** — navigate to forum-145-1.html, apply filters, extract the post list → cached JSON
-2. **`parse_mianxi.py`** — crawl each post's content, classify questions via Claude Haiku, generate a markdown report
+1. **`crawl_mianjing.py`** — navigate to forum-145-1.html, apply filters, extract the post list → cached JSON
+2. **`parse_mianjing.py`** — crawl each post's content, classify questions via Claude Haiku, generate a markdown report
 
 ## Prerequisites
 
@@ -23,18 +23,54 @@ source .venv/bin/activate
 # (if first time) pip install -e .
 ```
 
+## Agent decision path
+
+When a user says "帮我分析 X 公司的面经" or "crawl and parse Y interview posts":
+
+1. **Extract parameters** from the user request:
+   - `company` — company name (e.g. `netflix`, `google`, `meta`)
+   - `year` — default `2025` (most data); use `2026` only if user says "recent" or "latest"
+   - `job-category` — default `1` (码农); change for data science (`7`), PM (`8`), ML (`12`)
+   - `job-type` — default `1` (全职); `2` for 实习
+   - `fresh` — default `2` (在职跳槽); `1` for 应届
+
+2. **Check if cache already exists** before crawling:
+   ```bash
+   ls .agent/skills/1p3a-mianjing-crawler/cache/mianjing_<company>_y<year>_cat<cat>_type<type>_fresh<fresh>.json
+   ```
+   If file exists → skip Step 1, go directly to Step 2 (parse).
+
+3. **Step 1 — Crawl** (only if no cache):
+   ```bash
+   python .agent/skills/1p3a-mianjing-crawler/crawl_mianjing.py \
+     --company <company> --year <year> \
+     --job-category <cat> --job-type <type> --fresh <fresh>
+   ```
+   Output: `cache/mianjing_<company>_y<year>_cat<cat>_type<type>_fresh<fresh>.json`
+
+4. **Step 2 — Parse** (auto-detects the cache from Step 1):
+   ```bash
+   ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+   python .agent/skills/1p3a-mianjing-crawler/parse_mianjing.py \
+     --posts .agent/skills/1p3a-mianjing-crawler/cache/mianjing_<company>_y<year>_cat<cat>_type<type>_fresh<fresh>.json
+   ```
+   Output: `report_mianjing_<company>_y<year>_cat<cat>_type<type>_fresh<fresh>.md`
+
+5. **Return the report path** to the user and show a summary (result stats + top questions per category).
+
+---
+
 ## Run (agent path)
 
 From repo root with venv active:
 
 ```bash
-python .agent/skills/1p3a-mianxi-crawler/crawl_mianxi.py \
+python .agent/skills/1p3a-mianjing-crawler/crawl_mianjing.py \
   --company netflix \
   --year 2025 \
   --job-category 1 \
   --job-type 1 \
-  --fresh 2 \
-  --output results.json
+  --fresh 2
 ```
 
 Options:
@@ -52,28 +88,28 @@ Options:
 
 Output JSON fields per post: `title`, `url`, `tid`, `metadata` (category/type/company/result inline text), `author`, `time`, `replies`.
 
-## Step 2: Parse and classify (parse_mianxi.py)
+## Step 2: Parse and classify (parse_mianjing.py)
 
 Requires `ANTHROPIC_API_KEY` env var. Reads the cached post list, crawls each thread page, classifies questions via Claude Haiku, and writes a markdown report.
 
 ```bash
 # Full pipeline — auto-detects latest posts cache
-ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianxi-crawler/parse_mianxi.py
+ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianjing-crawler/parse_mianjing.py
 
 # Explicit posts file, limit to first 20
-ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianxi-crawler/parse_mianxi.py \
-  --posts .agent/skills/1p3a-mianxi-crawler/cache/mianxi_netflix_y2025_cat1_type1_fresh2.json \
+ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianjing-crawler/parse_mianjing.py \
+  --posts .agent/skills/1p3a-mianjing-crawler/cache/mianjing_netflix_y2025_cat1_type1_fresh2.json \
   --max-posts 20
 
 # Force re-parse cached content (skip browser)
-ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianxi-crawler/parse_mianxi.py --force-parse
+ANTHROPIC_API_KEY=sk-ant-... python .agent/skills/1p3a-mianjing-crawler/parse_mianjing.py --force-parse
 ```
 
 Options:
 
 | Flag | Default | Notes |
 |------|---------|-------|
-| `--posts` | _(auto)_ | Posts list JSON from `crawl_mianxi.py`; auto-detects latest in `cache/` |
+| `--posts` | _(auto)_ | Posts list JSON from `crawl_mianjing.py`; auto-detects latest in `cache/` |
 | `--browser-id` | `f46cbc45596240c0a8b3354cc96def49` | BitBrowser window ID |
 | `--max-posts` | `0` (all) | Limit number of posts to process |
 | `--force-crawl` | off | Re-crawl post content even if `cache/posts/<tid>.json` exists |

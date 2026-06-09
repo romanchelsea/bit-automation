@@ -2,17 +2,17 @@
 Parse and classify 面经 posts from 1point3acres using Claude API (Haiku).
 
 Pipeline:
-  1. Load post list from crawl_mianxi.py cache (JSON with tid/url/title)
+  1. Load post list from crawl_mianjing.py cache (JSON with tid/url/title)
   2. Crawl each post's content via BitBrowser + Playwright (cached to cache/posts/<tid>.json)
   3. Classify questions into behavioral / coding / system_design via Claude Haiku
      (cached to cache/parsed/<tid>.json)
   4. Aggregate into a summary report
 
 Usage:
-  python parse_mianxi.py [options]
+  python parse_mianjing.py [options]
 
 Options:
-  --posts FILE         Path to posts list JSON from crawl_mianxi.py (default: auto-detect latest in cache/)
+  --posts FILE         Path to posts list JSON from crawl_mianjing.py (default: auto-detect latest in cache/)
   --browser-id ID      BitBrowser window ID
   --max-posts N        Max posts to process (default: 0 = all)
   --force-crawl        Re-crawl post content even if cached
@@ -107,7 +107,7 @@ def classify_post(client: anthropic.Anthropic, content: str) -> dict:
 
 def find_latest_posts_cache() -> Path | None:
     """Find the most recently modified posts list JSON in cache/."""
-    files = sorted(CACHE_DIR.glob("mianxi_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+    files = sorted(CACHE_DIR.glob("mianjing_*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
     return files[0] if files else None
 
 
@@ -202,7 +202,7 @@ async def run(args: argparse.Namespace) -> None:
     # --- Step 0: find posts list ---
     posts_file = Path(args.posts) if args.posts else find_latest_posts_cache()
     if not posts_file or not posts_file.exists():
-        print(f"ERROR: No posts cache found. Run crawl_mianxi.py first, or pass --posts FILE")
+        print(f"ERROR: No posts cache found. Run crawl_mianjing.py first, or pass --posts FILE")
         sys.exit(1)
 
     posts: list[dict] = json.loads(posts_file.read_text(encoding="utf-8"))
@@ -255,6 +255,10 @@ async def run(args: argparse.Namespace) -> None:
                 await browser.close()
 
     # --- Step 2: Classify with Claude Haiku ---
+    if args.crawl_only:
+        print("\n--crawl-only: skipping classification and report generation.")
+        return
+
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         print("ERROR: ANTHROPIC_API_KEY environment variable not set")
@@ -330,6 +334,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     p.add_argument("--keep-open", action="store_true", dest="keep_open",
                    help="Leave Bit browser open after crawling")
     p.add_argument("--report", default="", help="Output report path (default: auto-named)")
+    p.add_argument("--crawl-only", action="store_true", dest="crawl_only",
+                   help="Only crawl post content, skip classification and report")
     return p.parse_args(argv)
 
 

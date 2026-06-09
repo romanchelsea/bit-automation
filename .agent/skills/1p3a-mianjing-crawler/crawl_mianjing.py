@@ -5,7 +5,7 @@ via BitBrowser + Playwright over CDP.
 The BitBrowser profile must already be logged in to 1point3acres.
 
 Usage:
-  python crawl_mianxi.py [options]
+  python crawl_mianjing.py [options]
 
 Options:
   --company NAME     Company name to search (e.g. "netflix", "google")
@@ -138,7 +138,7 @@ def _cache_path(args: argparse.Namespace) -> Path:
     if args.output:
         return Path(args.output)
     company_slug = args.company.lower().replace(" ", "_") or "any"
-    name = f"mianxi_{company_slug}_y{args.year}_cat{args.job_category}_type{args.job_type}_fresh{args.fresh}.json"
+    name = f"mianjing_{company_slug}_y{args.year}_cat{args.job_category}_type{args.job_type}_fresh{args.fresh}.json"
     CACHE_DIR.mkdir(exist_ok=True)
     return CACHE_DIR / name
 
@@ -161,7 +161,7 @@ async def run(args: argparse.Namespace) -> list[dict]:
         context = browser.contexts[0]
         page = await context.new_page()
 
-        print(f"Navigating to BBS 面经 page...")
+        print(f"Navigating to BBS 面经 page ...")
         await page.goto(BBS_URL, wait_until="domcontentloaded", timeout=30000)
         await page.wait_for_timeout(2000)
 
@@ -223,7 +223,7 @@ async def run(args: argparse.Namespace) -> list[dict]:
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Crawl 1point3acres 面经 via BitBrowser + Playwright.")
+    p = argparse.ArgumentParser(description="Crawl 1point3acres 面经 (mianjing) via BitBrowser + Playwright.")
     p.add_argument("--company", default="", help="Company name (e.g. netflix)")
     p.add_argument("--year", default="2026", help="Hiring year (default: 2026)")
     p.add_argument("--job-category", default="1", dest="job_category",
