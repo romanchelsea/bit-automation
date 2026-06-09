@@ -37,6 +37,10 @@ playwright/.cache/
 !.env.example
 auth.json
 
+# Crawler cache & ad-hoc output files
+.agent/skills/*/cache/
+results.json
+
 # OS / editor
 .DS_Store
 Thumbs.db
