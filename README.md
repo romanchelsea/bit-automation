@@ -71,15 +71,23 @@ bit-automation/
 ├── pyproject.toml
 ├── README.md
 └── .agent/skills/
-    └── xhs-creator-long-article/          # 小红书 long-article skill
-        ├── SKILL.md                        # Agent guidance
-        ├── xhs_post_long_article.py        # Main automation script
-        ├── tests/
-        │   ├── bit_playwright.py           # Smoke test: CDP connection
-        │   └── resources/
-        │       └── sample_xhs_article.txt
-        └── debug/
-            └── xhs_playwright_inspector.py # Interactive page inspector
+    ├── xhs-creator-long-article/          # 小红书 long-article skill
+    │   ├── SKILL.md
+    │   ├── xhs_post_long_article.py
+    │   ├── tests/
+    │   │   ├── bit_playwright.py
+    │   │   └── resources/
+    │   │       └── sample_xhs_article.txt
+    │   └── debug/
+    │       └── xhs_playwright_inspector.py
+    └── 1p3a-mianjing-crawler/               # 1point3acres 面经 crawler skill
+        ├── SKILL.md
+        ├── crawl_mianjing.py                # Crawl post list (filters + pagination)
+        ├── parse_mianjing.py                # Fetch per-post content + LLM classify
+        ├── env.local                      # API key (gitignored)
+        └── cache/                         # Crawl cache (gitignored)
+            ├── mianjing_*.json              # Post list cache per filter set
+            └── posts/<tid>.json           # Per-post content cache
 ```
 
 ## Skills
@@ -118,10 +126,68 @@ python xhs_post_long_article.py --title "标题" --body "文章内容"
 
 ---
 
-### Coming soon
+### 1point3acres BBS — 面经 crawler
 
-- **1point3acres BBS** — thread crawling and posting automation
-- Additional platforms driven by BitBrowser + LLM
+Crawls 面经 (interview experience) posts from [1point3acres.com/bbs](https://www.1point3acres.com/bbs/forum-145-1.html) via BitBrowser + Playwright over CDP, then optionally fetches and classifies post content with Claude.
+
+**Two-stage pipeline:**
+
+| Stage | Script | What it does |
+|-------|--------|-------------|
+| 1. Crawl list | `crawl_mianjing.py` | Applies filters (company, year, job type), paginates, saves post metadata to `cache/mianjing_*.json` |
+| 2. Fetch + classify | `parse_mianjing.py` | Reads each post's full content via Playwright, calls Claude to classify coding/SD/BQ topics, saves to `cache/posts/<tid>.json` |
+
+```bash
+cd .agent/skills/1p3a-mianjing-crawler
+
+# Crawl Netflix 2025 面经 list (cached after first run)
+python crawl_mianjing.py --company netflix --year 2025
+
+# Fetch post content only (skip LLM classification)
+python parse_mianjing.py --crawl-only
+
+# Full pipeline: fetch content + Claude classification
+python parse_mianjing.py
+```
+
+**Filters:** `--company`, `--year` (2025/2026), `--job-category` (1=码农), `--job-type` (1=全职), `--fresh` (2=在职跳槽), `--max-pages`
+
+**Cache:** both stages cache results to disk; re-runs are instant unless `--force` is passed.
+
+**Reports generated so far** (in repo root):
+
+| File | Contents |
+|------|----------|
+| `report_mianjing_netflix_y2025_cat1_type1_fresh2.md` | Netflix 2025 面经汇总（58 posts） |
+| `report_mianjing_netflix_y2026_cat1_type1_fresh2.md` | Netflix 2026 面经汇总（28 posts） |
+| `report_mianjing_netflix_ads_2025_2026.md` / `.pdf` | Ads 组专项汇总（86 posts 全量，含 PDF） |
+
+---
+
+---
+
+## Next steps
+
+### Human-like behavior improvements (both skills)
+
+Both scripts currently have some human-like delays but are detectable as bots at a closer look. Planned improvements:
+
+**`crawl_mianjing.py`** (currently minimal anti-bot measures):
+
+- [ ] Replace all fixed `wait_for_timeout(N)` calls with `jitter(base, ±range)` random intervals
+- [ ] Company autocomplete: replace `fill()` (instant paste) with character-by-character typing using gaussian delays
+- [ ] Filter selects: add mouse `hover` → pause → `click` sequence instead of direct `select_option`
+- [ ] Between pages: add random `mouse.wheel` scroll (simulate reading the page) before navigating
+- [ ] Between HTTP navigations: add random pre-navigation pause (0.5–2s) to simulate reading time
+
+**`xhs_post_long_article.py`** (already has per-keystroke jitter and random click delays):
+
+- [ ] `_click_with_delay`: before clicking, first `mouse.move` to a random point near the element, pause briefly, then move to the target and click — avoids teleporting cursor
+- [ ] Replace all fixed `asyncio.sleep(30)` / `asyncio.sleep(10)` waits with `±20%` jitter (e.g. `sleep(random.uniform(24, 36))`)
+
+**Shared utility (to extract):**
+
+- [ ] Add a `human.py` helper module with `jitter_sleep(base, pct=0.2)`, `human_move_and_click(page, locator)`, `human_type(locator, text)` — so both skills share the same anti-detection primitives
 
 ---
 
